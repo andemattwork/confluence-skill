@@ -23,6 +23,8 @@ Manage Confluence documentation through Claude Code: download pages to Markdown,
 | Small text-only uploads (<10KB) | MCP tools | `confluence_create_page`, `confluence_update_page` |
 | Large documents (>10KB) | `upload_confluence_v2.py` | REST API, no size limits |
 | Documents with images | `upload_confluence_v2.py` | Handles attachments automatically |
+| Localized edits on pages with native macros | Storage fragment patch scripts | Avoid full Markdown re-upload |
+| Native draw.io replacement | `replace_macro_with_drawio.py --dry-run` then `--apply` | Requires `.drawio` source attachment |
 | Git-to-Confluence sync | mark CLI | Best for CI/CD workflows |
 | Download pages to Markdown | `download_confluence.py` | Converts macros, downloads attachments |
 
@@ -82,6 +84,12 @@ python3 ~/.claude/skills/confluence/scripts/upload_confluence_v2.py \
 ```
 
 See [Image Handling Best Practices](references/image_handling_best_practices.md) for details.
+
+### Patch Native Macro Storage Safely
+
+For localized changes on pages with native macros (`drawio`, `plantuml`, layouts, complex tables), prefer storage-fragment patching over a full Markdown round trip. Use `patch_storage_fragment.py` or `replace_macro_with_drawio.py` in dry-run mode first, inspect the generated before/preview storage snapshots, then apply only after explicit confirmation. After applying, verify page version increased and read-back storage still contains required native macros.
+
+See [Storage Format](references/confluence_storage_format.md#storage-fragment-patching) for the validation checklist.
 
 ### Search Confluence
 

@@ -102,6 +102,20 @@ python scripts/render_mermaid.py diagram.mmd output.png
 # Add mark metadata
 python scripts/generate_mark_metadata.py file.md \
   --space DEV --title "Title"
+
+# Dry-run one storage fragment patch
+python scripts/patch_storage_fragment.py \
+  --page-id PAGE_ID \
+  --old-file old-fragment.xml \
+  --new-file new-fragment.xml \
+  --output-dir ./preview
+
+# Dry-run native draw.io macro replacement
+python scripts/replace_macro_with_drawio.py \
+  --page-id PAGE_ID \
+  --heading-html '<h2>Architecture</h2>' \
+  --drawio-file architecture.drawio \
+  --output-dir ./preview
 ```
 
 ## Available MCP Tools

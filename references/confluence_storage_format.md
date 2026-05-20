@@ -10,6 +10,7 @@ Understanding how Confluence stores and renders page content.
 - [Converting Markdown to Storage Format](#converting-markdown-to-storage-format)
 - [HTML Escaping Issues](#html-escaping-issues)
 - [REST API Upload](#rest-api-upload)
+- [Storage Fragment Patching](#storage-fragment-patching)
 - [Common Pitfalls](#common-pitfalls)
 
 ## What is Storage Format?
@@ -237,6 +238,79 @@ result = confluence.update_page(
 1. `body` parameter must contain storage format XML (not HTML or markdown)
 2. `representation='storage'` must be specified
 3. For updates, must increment version number correctly
+
+## Storage Fragment Patching
+
+Use storage-fragment patching when the requested change is localized and the page contains native macros or storage-only constructs that may be damaged by a full Markdown round trip.
+
+Good candidates:
+
+- Replace exactly one native macro after a known heading.
+- Update one storage fragment while preserving layouts, native diagrams, tables, and other macros.
+- Replace a component/network diagram with a native draw.io macro while preserving the editable `.drawio` source attachment.
+
+Avoid this workflow when the requested change spans many unrelated sections or when you cannot identify exactly one target fragment.
+
+### Generic fragment patch
+
+Dry-run first:
+
+```bash
+python3 scripts/patch_storage_fragment.py \
+  --page-id PAGE_ID \
+  --old-file old-fragment.xml \
+  --new-file new-fragment.xml \
+  --output-dir ./preview \
+  --require 'ac:name="drawio"' \
+  --forbid 'ac:name="broken-macro"'
+```
+
+Apply only after reviewing the preview and getting explicit confirmation:
+
+```bash
+python3 scripts/patch_storage_fragment.py \
+  --page-id PAGE_ID \
+  --old-file old-fragment.xml \
+  --new-file new-fragment.xml \
+  --output-dir ./preview \
+  --require 'ac:name="drawio"' \
+  --apply
+```
+
+### Replace one macro with draw.io
+
+Use this when a page should keep an editable native draw.io diagram. The macro stores diagram metadata; the editable source is the matching `.drawio` attachment with content type `application/vnd.jgraph.mxfile`.
+
+```bash
+python3 scripts/replace_macro_with_drawio.py \
+  --page-id PAGE_ID \
+  --heading-html '<h2>Architecture</h2>' \
+  --old-macro-name plantuml \
+  --drawio-file architecture.drawio \
+  --diagram-name Architecture \
+  --output-dir ./preview \
+  --require 'ac:name="drawio"'
+```
+
+Add `--apply` only after preview review and explicit confirmation.
+
+### Validation checklist
+
+Before applying:
+
+1. Fetch current storage and version.
+2. Save before and preview storage snapshots.
+3. Confirm the selector matches exactly one target fragment.
+4. Confirm required fragments exist in preview storage.
+5. Confirm forbidden fragments are absent from preview storage.
+
+After applying:
+
+1. Verify Confluence page version increased.
+2. Fetch read-back storage.
+3. Re-run required/forbidden fragment checks on read-back storage.
+4. For draw.io, verify `ac:structured-macro ac:name="drawio"`, the expected `diagramName`, and the matching `.drawio` attachment remain present.
+5. Stop and report if any validation fails.
 
 ## Image Attachment Workflow
 
