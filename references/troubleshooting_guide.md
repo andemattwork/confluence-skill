@@ -249,7 +249,7 @@ Only use a native Mermaid macro if the target Confluence instance has a Mermaid 
 - PlantUML macro suggests testing with `@startuml`, `testdot`, `@enduml`
 
 **Solution:**
-Use the native diagram workflow supported by the target Confluence instance. For network/component diagrams, prefer the existing draw.io macro pattern when available:
+Use the native diagram workflow supported by the target Confluence instance. For network/component diagrams, use the existing draw.io macro pattern when available:
 
 ```xml
 <ac:structured-macro ac:name="drawio" ac:schema-version="1">
@@ -262,7 +262,7 @@ Use the native diagram workflow supported by the target Confluence instance. For
 
 This pattern keeps the diagram editable through the draw.io plugin and uses the matching mxfile attachment. Do not replace it with a plain image attachment unless explicitly requested.
 
-If the target Confluence instance has a PlantUML macro plugin, native storage must use a structured macro with a plain-text body:
+If the target Confluence instance has a PlantUML macro plugin, sequence diagrams can use a structured macro with a plain-text body. Use PlantUML for component/class/state diagrams only when Graphviz `dot` is confirmed working:
 
 ```xml
 <ac:structured-macro ac:name="plantuml">
@@ -312,7 +312,7 @@ java -jar plantuml.jar -testdot
 **Symptom:**
 - Upload command exits successfully
 - Confluence page version or rendered diagram does not change
-- Read-back storage does not contain the expected `ac:image`, `plantuml`, or attachment filename
+- Read-back storage does not contain the expected `drawio`, `plantuml`, `ac:image`, or attachment filename
 
 **Cause:**
 The REST client may skip a page update when it believes the body is already current, or attachment upload may skip an existing filename. A successful API response alone does not prove the page version changed or the diagram storage is present.

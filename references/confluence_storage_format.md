@@ -173,11 +173,11 @@ def hello():
 
 ## Diagram Storage
 
-Use one of two explicit diagram workflows. Do not assume Markdown fences like <code>```mermaid</code> or <code>```plantuml</code> become Confluence diagram macros.
+Use explicit native diagram workflows. Do not assume Markdown fences like <code>```mermaid</code> or <code>```plantuml</code> become Confluence diagram macros.
 
 ### Native draw.io diagrams
 
-Use the native draw.io macro for network/component diagrams when that is the established Confluence pattern. A working page stores the diagram as a draw.io macro with a matching draw.io attachment (`application/vnd.jgraph.mxfile`) and often a PNG preview attachment managed by the macro.
+Use the native draw.io macro for network/component diagrams when the target Confluence instance supports draw.io. A working page stores the diagram as a draw.io macro with a matching draw.io attachment (`application/vnd.jgraph.mxfile`) and often a PNG preview attachment managed by the macro.
 
 ```xml
 <ac:structured-macro ac:name="drawio" ac:schema-version="1">
@@ -197,7 +197,7 @@ Do not convert an established native draw.io diagram into a plain `ac:image` rep
 
 ### Native PlantUML macro
 
-Use native PlantUML storage only when the target Confluence instance has a compatible PlantUML macro installed.
+Use native PlantUML storage for sequence diagrams and for non-sequence diagrams only when the target Confluence instance has a compatible PlantUML macro installed and Graphviz `dot` is confirmed working.
 
 Component, class, state, and many other non-sequence PlantUML diagrams require Graphviz `dot` on the Confluence server. A native macro is not sufficient by itself. If the rendered page shows `Dot executable does not exist`, `Cannot find Graphviz`, or suggests `@startuml\ntestdot\n@enduml`, the server-side PlantUML plugin cannot find Graphviz. The correct fix is to use the established native draw.io macro pattern for component/network diagrams or have an administrator install Graphviz and configure the plugin's `dot` executable path. Do not silently replace native diagrams with `ac:image`.
 
@@ -238,7 +238,7 @@ with domain invariants
 
 ### Mermaid macro caution
 
-Mermaid storage is not portable across Confluence installations. Only use an `ac:structured-macro` or `ac:macro` named `mermaid` after verifying the Mermaid macro exists on the target instance and that read-back storage preserves a non-empty macro body. If the plugin is missing or strips the body, render Mermaid to PNG/SVG and upload it as an image-backed diagram instead.
+Mermaid storage is not portable across Confluence installations. Only use an `ac:structured-macro` or `ac:macro` named `mermaid` after verifying the Mermaid macro exists on the target instance and that read-back storage preserves a non-empty macro body. If the plugin is missing or strips the body, use a supported native diagram macro workflow such as draw.io for editable diagrams; do not silently replace native diagrams with plain image attachments unless explicitly requested.
 
 ### Read-back verification
 

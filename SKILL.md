@@ -75,7 +75,7 @@ See [Downloading Guide](references/conversion_guide.md) for details.
 
 Do not replace native Confluence diagrams with image fallbacks unless explicitly requested. Markdown code fences do not become Confluence diagram macros by themselves.
 
-For network/component diagrams, prefer the existing native draw.io macro pattern when the target Confluence instance supports it. A working storage example uses `ac:structured-macro ac:name="drawio"` with a `diagramName` parameter and a matching draw.io attachment (`application/vnd.jgraph.mxfile`). The PNG preview attachment belongs to the draw.io macro and is not a replacement `ac:image` workflow.
+For network/component diagrams, use the native draw.io macro pattern when the target Confluence instance supports it. A working storage example uses `ac:structured-macro ac:name="drawio"` with a `diagramName` parameter and a matching draw.io attachment (`application/vnd.jgraph.mxfile`). The PNG preview attachment belongs to the draw.io macro and is not a replacement `ac:image` workflow.
 
 Native PlantUML component/class/state diagrams require server-side Graphviz `dot`. If Confluence renders `Dot executable does not exist`, `Cannot find Graphviz`, or suggests `@startuml\ntestdot\n@enduml`, the correct fix is Confluence/PlantUML plugin configuration or using the verified native draw.io macro pattern for component diagrams; do not silently replace the diagram with `ac:image`.
 
@@ -90,7 +90,7 @@ python3 scripts/upload_confluence_v2.py \
 
 4. Read the page back and verify rendered storage contains the expected native macro (`drawio`, `plantuml`) or `ac:image` only for ordinary images.
 
-Use native PlantUML storage only when the PlantUML macro is available on the target Confluence instance:
+Use native PlantUML storage for sequence diagrams and for non-sequence diagrams only when the PlantUML macro and its Graphviz `dot` dependency are confirmed working on the target Confluence instance:
 
 ```xml
 <ac:structured-macro ac:name="plantuml">
