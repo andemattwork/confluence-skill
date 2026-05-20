@@ -490,9 +490,9 @@ The frontmatter from the download contains:
 - Parent page ID
 - Title
 
-### Mermaid Diagram Support
+### Diagram Support
 
-Mermaid diagrams in your Markdown are automatically rendered to SVG images and uploaded as attachments:
+Diagram code fences in Markdown are not Confluence macros. Render Mermaid or PlantUML diagrams to PNG/SVG first, then upload them as normal image attachments:
 
 ````markdown
 ## Architecture Diagram
@@ -504,10 +504,18 @@ graph TD
 ```
 ````
 
-Requirements:
+Rendered Markdown:
+
+```markdown
+![Architecture diagram](./diagrams/architecture.png)
+```
+
+Mermaid rendering requirement:
 ```bash
 npm install -g @mermaid-js/mermaid-cli
 ```
+
+Native Confluence diagram macros are instance-specific. Only use them after confirming the target Confluence plugin exists, then read the page back and verify the expected storage macro body is present.
 
 ### Credential Discovery
 
@@ -649,11 +657,11 @@ npm install -g @mermaid-js/mermaid-cli
 - Convert inline formatting (bold, italic, code)
 
 ### Diagram Integration
-- Render Mermaid diagrams to PNG/SVG
+- Render Mermaid or PlantUML diagrams to PNG/SVG before upload
 - Extract diagrams from Markdown files
-- Upload diagrams as attachments
-- Embed diagrams in Confluence pages
-- Support all Mermaid diagram types (flowchart, sequence, class, etc.)
+- Upload rendered diagrams as attachments
+- Embed diagrams in Confluence pages with `ac:image`
+- Verify native diagram macros with read-back storage when plugins are used
 
 ### Git Integration (mark CLI)
 - Sync Markdown files from Git to Confluence
@@ -783,7 +791,7 @@ Architecture and patterns guide for Claude Code instances, documenting:
 
 ```
 "Create a Confluence page from this Markdown in the DEV space titled 'API Guide'"
-"Convert this Markdown document with Mermaid diagrams to Confluence"
+"Convert this Markdown document with rendered diagram images to Confluence"
 "Create a page under 'Documentation' parent with this content"
 ```
 
@@ -806,7 +814,7 @@ Architecture and patterns guide for Claude Code instances, documenting:
 ### Diagram Rendering
 
 ```
-"Render this Mermaid diagram and create a Confluence page"
+"Render this Mermaid diagram to an image and create a Confluence page"
 "Extract all diagrams from this Markdown and upload to Confluence"
 "Create a page with this flowchart diagram"
 ```

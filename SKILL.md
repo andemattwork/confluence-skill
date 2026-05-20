@@ -22,7 +22,8 @@ Manage Confluence documentation through Claude Code: download pages to Markdown,
 | Read pages | `download_confluence.py` | Converts macros, downloads attachments |
 | Small text-only uploads (<10KB) | `upload_confluence_v2.py --dry-run` then explicit upload | Preview before write |
 | Large documents (>10KB) | `upload_confluence_v2.py` | REST API, no size limits |
-| Documents with images | `upload_confluence_v2.py` | Handles attachments automatically |
+| Documents with images or rendered diagrams | `upload_confluence_v2.py` | Handles attachments automatically |
+| Documents with native Confluence macros | Storage-safe workflow | Verify the exact macro exists after upload |
 | Git-to-Confluence sync | mark CLI | Best for CI/CD workflows |
 | Download pages to Markdown | `download_confluence.py` | Converts macros, downloads attachments |
 
@@ -70,16 +71,35 @@ python3 scripts/download_confluence.py --output-dir ./docs 123456789
 
 See [Downloading Guide](references/conversion_guide.md) for details.
 
-### Upload Pages with Images
+### Upload Pages with Images and Diagrams
 
-1. Convert diagrams to images first using `design-doc-mermaid` or `plantuml` skills
-2. Reference images with standard markdown: `![Description](./images/diagram.png)`
-3. Upload via REST API:
+Prefer image-backed diagrams unless the target Confluence instance has the matching macro plugin installed and tested. Markdown code fences do not become Confluence diagram macros by themselves.
+
+1. Convert Mermaid or PlantUML diagrams to PNG/SVG first, then reference images with standard markdown: `![Description](./images/diagram.png)`.
+2. Upload via REST API:
 
 ```bash
 python3 scripts/upload_confluence_v2.py \
     document.md --id PAGE_ID
 ```
+
+3. Read the page back and verify rendered storage contains `ac:image` references for rendered diagrams.
+
+Use native PlantUML storage only when the PlantUML macro is available on the target Confluence instance:
+
+```xml
+<ac:structured-macro ac:name="plantuml">
+  <ac:plain-text-body><![CDATA[
+@startuml
+component "Frontend" as UI
+component "Backend" as API
+UI --> API : request
+@enduml
+  ]]></ac:plain-text-body>
+</ac:structured-macro>
+```
+
+After uploading native macros, read the page back and verify the expected `ac:structured-macro ac:name="plantuml"` or `ac:image` exists. Treat empty macros, literal `@startuml` text, or unexpected `ac:macro ac:name="mermaid"` output as a failed upload/rendering workflow.
 
 See [Image Handling Best Practices](references/image_handling_best_practices.md) for details.
 
