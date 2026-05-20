@@ -131,6 +131,14 @@ def convert_markdown_to_storage(markdown_content: str) -> Tuple[str, List[str]]:
     return storage_html, attachments
 
 
+def _page_version(page_info: Dict, page_id: str) -> int:
+    """Extract page version from a Confluence API response."""
+    try:
+        return int(page_info['version']['number'])
+    except (KeyError, TypeError, ValueError) as e:
+        raise ValueError(f"Failed to read version for page {page_id}: {e}")
+
+
 def upload_to_confluence(
     confluence,
     page_id: str,
@@ -162,7 +170,7 @@ def upload_to_confluence(
         # Get current page version
         try:
             page_info = confluence.get_page_by_id(page_id, expand='version')
-            current_version = page_info['version']['number']
+            current_version = _page_version(page_info, page_id)
         except Exception as e:
             raise ValueError(f"Failed to fetch current version for page {page_id}: {e}")
 
@@ -184,11 +192,20 @@ def upload_to_confluence(
                 type='page',
                 representation='storage',  # CRITICAL: Must be 'storage' format
                 minor_edit=False,
-                version_comment=f"Updated with images (v{current_version} → v{new_version})"
+                version_comment=f"Updated with images (v{current_version} → v{new_version})",
+                always_update=True
             )
 
+            verified_page = confluence.get_page_by_id(page_id, expand='version,body.storage')
+            verified_version = _page_version(verified_page, page_id)
+            if verified_version <= current_version:
+                raise ValueError(
+                    f"Update verification failed for page {page_id}: "
+                    f"version stayed at {verified_version}; expected > {current_version}"
+                )
+
             print(f"✅ Page updated successfully")
-            print(f"   Version: {result.get('version', {}).get('number', 'unknown')}")
+            print(f"   Version: {verified_version}")
 
         except Exception as e:
             print(f"❌ ERROR updating page: {e}")
@@ -202,7 +219,7 @@ def upload_to_confluence(
         return {
             'id': result['id'],
             'title': result['title'],
-            'version': result.get('version', {}).get('number', 'unknown'),
+            'version': verified_version,
             'url': confluence.url + result['_links']['webui']
         }
 
