@@ -7,6 +7,7 @@ Understanding how Confluence stores and renders page content.
 - [What is Storage Format](#what-is-storage-format)
 - [Common Storage Format Elements](#common-storage-format-elements)
 - [Confluence Macros](#confluence-macros)
+- [Diagram Storage](#diagram-storage)
 - [Converting Markdown to Storage Format](#converting-markdown-to-storage-format)
 - [HTML Escaping Issues](#html-escaping-issues)
 - [REST API Upload](#rest-api-upload)
@@ -170,6 +171,73 @@ def hello():
 </ac:structured-macro>
 ```
 
+## Diagram Storage
+
+Use one of two explicit diagram workflows. Do not assume Markdown fences like <code>```mermaid</code> or <code>```plantuml</code> become Confluence diagram macros.
+
+### Image-backed diagrams
+
+This is the safest default for Mermaid and PlantUML diagrams because it only depends on normal Confluence attachments.
+
+```markdown
+![Component diagram](./diagrams/component.png)
+```
+
+The Markdown upload workflow converts that to storage like:
+
+```xml
+<ac:image ac:alt="Component diagram">
+  <ri:attachment ri:filename="component.png"/>
+</ac:image>
+```
+
+Render Mermaid or PlantUML outside Confluence first:
+
+```bash
+mmdc -i component.mmd -o component.png -b transparent
+plantuml sequence.puml -tpng
+```
+
+### Native PlantUML macro
+
+Use native PlantUML storage only when the target Confluence instance has a compatible PlantUML macro installed.
+
+```xml
+<ac:structured-macro ac:name="plantuml">
+  <ac:plain-text-body><![CDATA[
+@startuml
+title Component diagram
+component "Frontend" as UI
+component "Backend API" as API
+database "Main DB" as DB
+UI --> API : command/query
+API --> DB : read/write
+@enduml
+  ]]></ac:plain-text-body>
+</ac:structured-macro>
+```
+
+Component diagrams should show static responsibilities and integrations: UIs, services, databases, queues, and external systems. Sequence diagrams should show one runtime scenario over time with actors, participants, messages, and optional `alt/else/end` blocks.
+
+### Mermaid macro caution
+
+Mermaid storage is not portable across Confluence installations. Only use an `ac:structured-macro` or `ac:macro` named `mermaid` after verifying the Mermaid macro exists on the target instance and that read-back storage preserves a non-empty macro body. If the plugin is missing or strips the body, render Mermaid to PNG/SVG and upload it as an image-backed diagram instead.
+
+### Read-back verification
+
+After uploading diagrams, fetch the page with `body.storage` and verify the expected storage shape:
+
+- Image-backed diagram: storage contains `<ac:image` and the expected `<ri:attachment ri:filename="..."/>`.
+- Native PlantUML diagram: storage contains `ac:structured-macro ac:name="plantuml"` and a non-empty `ac:plain-text-body` with `@startuml` and `@enduml`.
+- Mermaid macro: storage contains a non-empty supported Mermaid macro only if the target instance supports it.
+
+Treat these as failures:
+
+- Raw macro XML appears as escaped text such as `&lt;ac:image&gt;`.
+- Diagram source appears as ordinary page text instead of macro body.
+- Storage contains an empty macro such as a self-closing Mermaid macro.
+- Read-back storage does not contain the expected `ac:image`, `plantuml`, or attachment filename.
+
 ## Converting Markdown to Storage Format
 
 ### Using md2cf Library
@@ -301,6 +369,12 @@ result = confluence.update_page(
 **Problem:** Raw XML gets HTML-escaped and appears as literal text.
 
 **Solution:** Always use markdown syntax; let md2cf convert to storage format.
+
+### ❌ Assuming Markdown Diagram Fences Become Macros
+
+**Problem:** Markdown fences such as <code>```mermaid</code> and <code>```plantuml</code> usually become code blocks or text. They do not automatically become Confluence diagram macros.
+
+**Solution:** Render diagrams to PNG/SVG and reference them with markdown image syntax, or use a storage-safe native macro workflow and verify read-back storage after upload.
 
 ### ❌ Forgetting `representation='storage'`
 

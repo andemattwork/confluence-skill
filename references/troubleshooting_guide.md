@@ -234,6 +234,10 @@ mmdc -i architecture.mmd -o architecture.png -b transparent
 1. Convert diagrams to images separately
 2. Use base `ConfluenceRenderer`
 3. Reference images with markdown syntax
+4. Read the page back and verify storage contains `ac:image` and the expected attachment filename
+
+**Native Macro Exception:**
+Only use a native Mermaid macro if the target Confluence instance has a Mermaid macro plugin and read-back storage preserves a non-empty Mermaid macro body. If storage contains an empty `ac:macro ac:name="mermaid"` or the diagram source appears as plain text, render the diagram to PNG/SVG instead.
 
 ---
 
@@ -243,7 +247,7 @@ mmdc -i architecture.mmd -o architecture.png -b transparent
 - PlantUML code appears as text, not diagrams
 
 **Solution:**
-Same as Mermaid - convert to images first:
+Default to the same image-backed workflow as Mermaid:
 
 ```bash
 # Use plantuml skill
@@ -256,6 +260,42 @@ plantuml diagram.puml -tpng
 # Reference in markdown:
 ![Component Diagram](./diagrams/component.png)
 ```
+
+If the target Confluence instance has a PlantUML macro plugin, native storage must use a structured macro with a plain-text body:
+
+```xml
+<ac:structured-macro ac:name="plantuml">
+  <ac:plain-text-body><![CDATA[
+@startuml
+component "Frontend" as UI
+component "Backend" as API
+UI --> API : request
+@enduml
+  ]]></ac:plain-text-body>
+</ac:structured-macro>
+```
+
+After upload, read the page back and confirm storage contains `ac:structured-macro ac:name="plantuml"`, a non-empty `ac:plain-text-body`, and both `@startuml` and `@enduml`. Empty macros or literal diagram text mean the upload/rendering workflow failed.
+
+---
+
+### Diagram Upload Reports Success but Page Did Not Change
+
+**Symptom:**
+- Upload command exits successfully
+- Confluence page version or rendered diagram does not change
+- Read-back storage does not contain the expected `ac:image`, `plantuml`, or attachment filename
+
+**Cause:**
+The REST client may skip a page update when it believes the body is already current, or attachment upload may skip an existing filename. A successful API response alone does not prove the page version changed or the diagram storage is present.
+
+**Solution:**
+1. Run `--dry-run` first and confirm the converted storage/attachment list is what you expect.
+2. Upload the page.
+3. Fetch the page back with `expand=version,body.storage`.
+4. Verify the page version increased for an expected update.
+5. Verify storage contains the exact expected diagram marker: `ac:image`, `ri:attachment ri:filename="..."`, or `ac:structured-macro ac:name="plantuml"`.
+6. If reusing an attachment filename, use `--force-reupload` or upload a new filename so Confluence does not keep rendering the old asset.
 
 ---
 
@@ -528,6 +568,8 @@ Before uploading to Confluence, verify:
 - [ ] All images converted to PNG/SVG (not Mermaid/PlantUML code blocks)
 - [ ] Using markdown image syntax: `![alt](path)`
 - [ ] No raw Confluence XML in markdown
+- [ ] Native diagram macros only used when the target Confluence plugin is installed and tested
+- [ ] Read-back storage verification planned for diagrams and macros
 - [ ] All image files exist at specified paths
 - [ ] Credentials file path is correct
 - [ ] Page ID is correct (from Confluence URL)

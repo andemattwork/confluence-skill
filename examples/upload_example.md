@@ -1,5 +1,5 @@
 ---
-title: Example Page with Mermaid Diagrams
+title: Example Page with Rendered Diagrams
 confluence:
   space: DEMO
   type: page
@@ -12,52 +12,27 @@ labels:
   - diagrams
 ---
 
-# Example Page with Mermaid Diagrams
+# Example Page with Rendered Diagrams
 
-This is a sample page demonstrating upload functionality with Mermaid diagram support.
+This is a sample page demonstrating upload functionality with rendered diagram images.
 
 ## Overview
 
 This page shows how to create Confluence pages from Markdown with:
-- **Mermaid diagrams** that are automatically rendered to SVG
+- **Rendered diagrams** uploaded as image attachments
 - **Code blocks** with syntax highlighting
 - **Tables** and formatted text
 - **YAML frontmatter** for metadata
 
 ## System Architecture
 
-Here's a simple architecture diagram using Mermaid:
+Here's a simple architecture diagram rendered before upload:
 
-```mermaid
-graph TD
-    A[Client Application] --> B[Load Balancer]
-    B --> C[Web Server 1]
-    B --> D[Web Server 2]
-    C --> E[(Database)]
-    D --> E
-    E --> F[Backup Storage]
-```
+![Architecture diagram](./diagrams/architecture.png)
 
 ## Data Flow
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant API
-    participant Database
-    participant Cache
-
-    User->>API: Request Data
-    API->>Cache: Check Cache
-    alt Cache Hit
-        Cache-->>API: Return Cached Data
-    else Cache Miss
-        API->>Database: Query Database
-        Database-->>API: Return Data
-        API->>Cache: Update Cache
-    end
-    API-->>User: Return Response
-```
+![Data flow sequence](./diagrams/data-flow.png)
 
 ## Code Example
 
@@ -119,24 +94,14 @@ print(f"Processed {len(output)} items")
 
 ## State Machine
 
-```mermaid
-stateDiagram-v2
-    [*] --> Idle
-    Idle --> Processing: Start
-    Processing --> Success: Complete
-    Processing --> Failed: Error
-    Success --> [*]
-    Failed --> Retry: Retry
-    Retry --> Processing
-    Failed --> [*]: Give Up
-```
+![State machine](./diagrams/state-machine.png)
 
 ## Conclusion
 
 This example demonstrates all the key features of the upload functionality:
 
 - ✅ Frontmatter metadata for page configuration
-- ✅ Mermaid diagrams automatically rendered to images
+- ✅ Diagram images uploaded as attachments
 - ✅ Code blocks with syntax highlighting
 - ✅ Tables and text formatting
 - ✅ Proper Markdown structure
