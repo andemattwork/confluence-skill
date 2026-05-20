@@ -245,21 +245,22 @@ Only use a native Mermaid macro if the target Confluence instance has a Mermaid 
 
 **Symptom:**
 - PlantUML code appears as text, not diagrams
+- PlantUML macro renders `Dot executable does not exist` or `Cannot find Graphviz`
+- PlantUML macro suggests testing with `@startuml`, `testdot`, `@enduml`
 
 **Solution:**
-Default to the same image-backed workflow as Mermaid:
+Use the native diagram workflow supported by the target Confluence instance. For network/component diagrams, prefer the existing draw.io macro pattern when available:
 
-```bash
-# Use plantuml skill
-Skill: "plantuml"
-# Follow prompts
-
-# Or manually:
-plantuml diagram.puml -tpng
-
-# Reference in markdown:
-![Component Diagram](./diagrams/component.png)
+```xml
+<ac:structured-macro ac:name="drawio" ac:schema-version="1">
+  <ac:parameter ac:name="diagramName">Component Diagram</ac:parameter>
+  <ac:parameter ac:name="diagramWidth">626</ac:parameter>
+  <ac:parameter ac:name="height">311</ac:parameter>
+  <ac:parameter ac:name="revision">1</ac:parameter>
+</ac:structured-macro>
 ```
+
+This pattern keeps the diagram editable through the draw.io plugin and uses the matching mxfile attachment. Do not replace it with a plain image attachment unless explicitly requested.
 
 If the target Confluence instance has a PlantUML macro plugin, native storage must use a structured macro with a plain-text body:
 
@@ -276,6 +277,33 @@ UI --> API : request
 ```
 
 After upload, read the page back and confirm storage contains `ac:structured-macro ac:name="plantuml"`, a non-empty `ac:plain-text-body`, and both `@startuml` and `@enduml`. Empty macros or literal diagram text mean the upload/rendering workflow failed.
+
+**Graphviz/dot errors:**
+
+Component, class, state, and many other non-sequence PlantUML diagrams require Graphviz `dot` on the Confluence server. If Confluence renders an error like this, the issue is server-side plugin configuration, not Markdown conversion or upload:
+
+```text
+Dot Executable: /opt/local/bin/dot
+Dot executable does not exist
+Cannot find Graphviz
+```
+
+Fix options:
+
+1. Use the established native draw.io macro pattern for component/network diagrams when draw.io is available on the target Confluence instance.
+2. Infrastructure fix: ask a Confluence administrator to install Graphviz and configure the PlantUML plugin's `dot` executable path, then verify with:
+
+```plantuml
+@startuml
+testdot
+@enduml
+```
+
+or on the server:
+
+```bash
+java -jar plantuml.jar -testdot
+```
 
 ---
 
@@ -565,7 +593,7 @@ print(f"   Current version: {page['version']['number']}")
 Before uploading to Confluence, verify:
 
 - [ ] Using `upload_confluence_v2.py` (not MCP, not old v1 script)
-- [ ] All images converted to PNG/SVG (not Mermaid/PlantUML code blocks)
+- [ ] Native diagrams preserved as editable Confluence macros (`drawio`, `plantuml`) unless an image replacement was explicitly requested
 - [ ] Using markdown image syntax: `![alt](path)`
 - [ ] No raw Confluence XML in markdown
 - [ ] Native diagram macros only used when the target Confluence plugin is installed and tested
