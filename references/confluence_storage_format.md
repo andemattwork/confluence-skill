@@ -175,42 +175,41 @@ def hello():
 
 Use one of two explicit diagram workflows. Do not assume Markdown fences like <code>```mermaid</code> or <code>```plantuml</code> become Confluence diagram macros.
 
-### Image-backed diagrams
+### Native draw.io diagrams
 
-This is the safest default for Mermaid and PlantUML diagrams because it only depends on normal Confluence attachments.
-
-```markdown
-![Component diagram](./diagrams/component.png)
-```
-
-The Markdown upload workflow converts that to storage like:
+Use the native draw.io macro for network/component diagrams when that is the established Confluence pattern. A working page stores the diagram as a draw.io macro with a matching draw.io attachment (`application/vnd.jgraph.mxfile`) and often a PNG preview attachment managed by the macro.
 
 ```xml
-<ac:image ac:alt="Component diagram">
-  <ri:attachment ri:filename="component.png"/>
-</ac:image>
+<ac:structured-macro ac:name="drawio" ac:schema-version="1">
+  <ac:parameter ac:name="border">true</ac:parameter>
+  <ac:parameter ac:name="diagramName">Component Diagram</ac:parameter>
+  <ac:parameter ac:name="simpleViewer">false</ac:parameter>
+  <ac:parameter ac:name="links">auto</ac:parameter>
+  <ac:parameter ac:name="tbstyle">top</ac:parameter>
+  <ac:parameter ac:name="lbox">true</ac:parameter>
+  <ac:parameter ac:name="diagramWidth">626</ac:parameter>
+  <ac:parameter ac:name="height">311</ac:parameter>
+  <ac:parameter ac:name="revision">1</ac:parameter>
+</ac:structured-macro>
 ```
 
-Render Mermaid or PlantUML outside Confluence first:
-
-```bash
-mmdc -i component.mmd -o component.png -b transparent
-plantuml sequence.puml -tpng
-```
+Do not convert an established native draw.io diagram into a plain `ac:image` replacement unless explicitly requested. Preserve the draw.io macro and its mxfile attachment so the diagram stays editable in Confluence.
 
 ### Native PlantUML macro
 
 Use native PlantUML storage only when the target Confluence instance has a compatible PlantUML macro installed.
+
+Component, class, state, and many other non-sequence PlantUML diagrams require Graphviz `dot` on the Confluence server. A native macro is not sufficient by itself. If the rendered page shows `Dot executable does not exist`, `Cannot find Graphviz`, or suggests `@startuml\ntestdot\n@enduml`, the server-side PlantUML plugin cannot find Graphviz. The correct fix is to use the established native draw.io macro pattern for component/network diagrams or have an administrator install Graphviz and configure the plugin's `dot` executable path. Do not silently replace native diagrams with `ac:image`.
 
 ```xml
 <ac:structured-macro ac:name="plantuml">
   <ac:plain-text-body><![CDATA[
 @startuml
 title Component diagram
-component "Frontend" as UI
-component "Backend API" as API
-database "Main DB" as DB
-UI --> API : command/query
+component "Frontend\n/app" as UI
+component "Backend API\n/service" as API
+database "Main DB\npostgres" as DB
+UI --> API : command/query\nwith details
 API --> DB : read/write
 @enduml
   ]]></ac:plain-text-body>
@@ -218,6 +217,24 @@ API --> DB : read/write
 ```
 
 Component diagrams should show static responsibilities and integrations: UIs, services, databases, queues, and external systems. Sequence diagrams should show one runtime scenario over time with actors, participants, messages, and optional `alt/else/end` blocks.
+
+Keep PlantUML labels on one physical source line. For multi-line visual labels, use escaped `\n` inside the label or edge text:
+
+```plantuml
+component "Web UI\n/app" as UI
+database "Application DB\nprimary" as DB
+UI --> DB : save entity\nwith domain invariants
+```
+
+Do not write physical newlines inside quoted labels or relationship descriptions:
+
+```plantuml
+' Wrong: breaks parsing in PlantUML macros
+component "Web UI
+/app" as UI
+UI --> DB : save entity
+with domain invariants
+```
 
 ### Mermaid macro caution
 
@@ -227,7 +244,8 @@ Mermaid storage is not portable across Confluence installations. Only use an `ac
 
 After uploading diagrams, fetch the page with `body.storage` and verify the expected storage shape:
 
-- Image-backed diagram: storage contains `<ac:image` and the expected `<ri:attachment ri:filename="..."/>`.
+- Native draw.io diagram: storage contains `ac:structured-macro ac:name="drawio"`, the expected `diagramName`, and the matching draw.io attachment remains present.
+- Ordinary image: storage contains `<ac:image` and the expected `<ri:attachment ri:filename="..."/>`.
 - Native PlantUML diagram: storage contains `ac:structured-macro ac:name="plantuml"` and a non-empty `ac:plain-text-body` with `@startuml` and `@enduml`.
 - Mermaid macro: storage contains a non-empty supported Mermaid macro only if the target instance supports it.
 
@@ -236,7 +254,9 @@ Treat these as failures:
 - Raw macro XML appears as escaped text such as `&lt;ac:image&gt;`.
 - Diagram source appears as ordinary page text instead of macro body.
 - Storage contains an empty macro such as a self-closing Mermaid macro.
-- Read-back storage does not contain the expected `ac:image`, `plantuml`, or attachment filename.
+- Read-back storage does not contain the expected `drawio`, `plantuml`, `ac:image`, or attachment filename.
+- Rendered PlantUML output shows `Syntax Error`, often caused by physical newlines inside quoted labels or edge labels instead of escaped `\n`.
+- Rendered PlantUML output shows `Dot executable does not exist` or `Cannot find Graphviz`; use the established native draw.io macro pattern for component/network diagrams or fix server-side Graphviz `dot` configuration.
 
 ## Converting Markdown to Storage Format
 
@@ -374,7 +394,7 @@ result = confluence.update_page(
 
 **Problem:** Markdown fences such as <code>```mermaid</code> and <code>```plantuml</code> usually become code blocks or text. They do not automatically become Confluence diagram macros.
 
-**Solution:** Render diagrams to PNG/SVG and reference them with markdown image syntax, or use a storage-safe native macro workflow and verify read-back storage after upload.
+**Solution:** Use a storage-safe native macro workflow and verify read-back storage after upload. For network/component diagrams, prefer the established draw.io macro pattern where available. Do not silently replace native diagrams with plain image attachments unless explicitly requested.
 
 ### ❌ Forgetting `representation='storage'`
 
