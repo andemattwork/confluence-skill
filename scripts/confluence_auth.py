@@ -33,13 +33,17 @@ def _check_env_vars() -> Optional[Dict[str, str]]:
     """Check if required environment variables are set"""
     url = os.getenv('CONFLUENCE_URL')
     username = os.getenv('CONFLUENCE_USERNAME')
-    token = os.getenv('CONFLUENCE_API_TOKEN') or os.getenv('CONFLUENCE_PASSWORD')
+    token = (os.getenv('CONFLUENCE_PERSONAL_TOKEN') or
+             os.getenv('CONFLUENCE_API_TOKEN') or
+             os.getenv('CONFLUENCE_PASSWORD'))
+    auth_type = os.getenv('CONFLUENCE_AUTH_TYPE', 'bearer').lower()
 
     if all([url, username, token]):
         return {
             'url': url,
             'username': username,
-            'token': token
+            'token': token,
+            'auth_type': auth_type,
         }
     return None
 
@@ -109,8 +113,10 @@ def _load_mcp_config() -> Optional[Dict[str, str]]:
 
                 url = env_vars.get('CONFLUENCE_URL')
                 username = env_vars.get('CONFLUENCE_USERNAME')
-                token = (env_vars.get('CONFLUENCE_API_TOKEN') or
+                token = (env_vars.get('CONFLUENCE_PERSONAL_TOKEN') or
+                        env_vars.get('CONFLUENCE_API_TOKEN') or
                         env_vars.get('CONFLUENCE_PASSWORD'))
+                auth_type = env_vars.get('CONFLUENCE_AUTH_TYPE', 'bearer').lower()
 
                 # Handle ${VAR} references
                 if token and token.startswith('${') and token.endswith('}'):
@@ -121,7 +127,8 @@ def _load_mcp_config() -> Optional[Dict[str, str]]:
                     return {
                         'url': url,
                         'username': username,
-                        'token': token
+                        'token': token,
+                        'auth_type': auth_type,
                     }
 
         except (json.JSONDecodeError, KeyError, IOError):
@@ -184,16 +191,7 @@ def get_confluence_credentials(env_file: Optional[str] = None) -> Dict[str, str]
         if creds:
             return creds
 
-    # Priority 6: Home directory .env files
-    for env_variant in ENV_FILE_VARIANTS:
-        home_env = Path.home() / env_variant
-        if home_env.exists():
-            load_dotenv(home_env)
-            creds = _check_env_vars()
-            if creds:
-                return creds
-
-    # Priority 7: MCP configuration
+    # Priority 6: MCP configuration
     creds = _load_mcp_config()
     if creds:
         return creds
@@ -236,9 +234,17 @@ def get_confluence_client(env_file: Optional[str] = None, **overrides):
     url = overrides.get('url', creds['url'])
     username = overrides.get('username', creds['username'])
     token = overrides.get('token', creds['token'])
+    auth_type = overrides.get('auth_type', creds.get('auth_type', 'bearer')).lower()
 
     # Determine if Cloud or Server/Data Center
     is_cloud = '.atlassian.net' in url
+
+    if auth_type == 'bearer':
+        return Confluence(
+            url=url,
+            token=token,
+            cloud=is_cloud
+        )
 
     return Confluence(
         url=url,

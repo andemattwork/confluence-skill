@@ -511,9 +511,9 @@ npm install -g @mermaid-js/mermaid-cli
 
 ### Credential Discovery
 
-The upload script searches for credentials in this order:
+The upload and download scripts search for credentials in this order:
 
-1. Environment variables (`CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN`)
+1. Environment variables (`CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_PERSONAL_TOKEN` or `CONFLUENCE_API_TOKEN`)
 2. `.env` in current directory
 3. `.env.confluence` in current directory
 4. `.env.jira` in current directory
@@ -521,11 +521,14 @@ The upload script searches for credentials in this order:
 6. Walk up parent directories for above files
 7. MCP config (`~/.config/mcp/.mcp.json`)
 
+Authentication defaults to Bearer token mode. Set `CONFLUENCE_AUTH_TYPE=basic` only for Confluence instances that require username/password or Cloud API-token basic auth. For Server/Data Center instances whose REST API is mounted under a context path, set `CONFLUENCE_CONTEXT_PATH` such as `/wiki`; otherwise scripts use root `/rest/api`.
+
 Create a `.env` file with your credentials:
 ```bash
 CONFLUENCE_URL=https://your-domain.atlassian.net
 CONFLUENCE_USERNAME=your.email@example.com
-CONFLUENCE_API_TOKEN=your_api_token_here
+CONFLUENCE_PERSONAL_TOKEN=your_personal_access_token_here
+CONFLUENCE_AUTH_TYPE=bearer
 ```
 
 See `examples/.env.confluence.example` for a template.

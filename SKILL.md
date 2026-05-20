@@ -10,7 +10,7 @@ Manage Confluence documentation through Claude Code: download pages to Markdown,
 ## Table of Contents
 
 - [Quick Decision Matrix](#quick-decision-matrix)
-- [MCP Size Limits](#mcp-size-limits)
+- [REST Script Workflows](#rest-script-workflows)
 - [Prerequisites](#prerequisites)
 - [Core Workflows](#core-workflows)
 - [Reference Documentation](#reference-documentation)
@@ -19,34 +19,34 @@ Manage Confluence documentation through Claude Code: download pages to Markdown,
 
 | Task | Tool | Notes |
 |------|------|-------|
-| Read pages | MCP tools | `confluence_get_page`, `confluence_search` |
-| Small text-only uploads (<10KB) | MCP tools | `confluence_create_page`, `confluence_update_page` |
+| Read pages | `download_confluence.py` | Converts macros, downloads attachments |
+| Small text-only uploads (<10KB) | `upload_confluence_v2.py --dry-run` then explicit upload | Preview before write |
 | Large documents (>10KB) | `upload_confluence_v2.py` | REST API, no size limits |
 | Documents with images | `upload_confluence_v2.py` | Handles attachments automatically |
 | Git-to-Confluence sync | mark CLI | Best for CI/CD workflows |
 | Download pages to Markdown | `download_confluence.py` | Converts macros, downloads attachments |
 
-## MCP Size Limits
+## REST Script Workflows
 
-MCP tools have size limits (10-20KB) for uploads. For large documents or pages with images, use the REST API via `upload_confluence_v2.py`:
+Use the REST API scripts for Confluence reads and writes. Always run `--dry-run` before writes:
 
 ```bash
 # Upload large document
-python3 ~/.claude/skills/confluence/scripts/upload_confluence_v2.py \
+python3 scripts/upload_confluence_v2.py \
     document.md --id 780369923
 
 # Dry-run preview
-python3 ~/.claude/skills/confluence/scripts/upload_confluence_v2.py \
+python3 scripts/upload_confluence_v2.py \
     document.md --id 780369923 --dry-run
 ```
 
-MCP works for reading pages but not for uploading large content.
+Local Server/Data Center auth supports `CONFLUENCE_PERSONAL_TOKEN`, `CONFLUENCE_AUTH_TYPE=bearer`, and optional `CONFLUENCE_CONTEXT_PATH`. Do not print token values.
 
 ## Prerequisites
 
 ### Required
 
-- **Atlassian MCP Server** (`mcp__atlassian-evinova`) with Confluence credentials
+- Confluence credentials exported in the environment: `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, and `CONFLUENCE_PERSONAL_TOKEN` or `CONFLUENCE_API_TOKEN`
 
 ### Optional
 
@@ -59,13 +59,13 @@ MCP works for reading pages but not for uploading large content.
 
 ```bash
 # Single page
-python3 ~/.claude/skills/confluence/scripts/download_confluence.py 123456789
+python3 scripts/download_confluence.py 123456789
 
 # With child pages
-python3 ~/.claude/skills/confluence/scripts/download_confluence.py --download-children 123456789
+python3 scripts/download_confluence.py --download-children 123456789
 
 # Custom output directory
-python3 ~/.claude/skills/confluence/scripts/download_confluence.py --output-dir ./docs 123456789
+python3 scripts/download_confluence.py --output-dir ./docs 123456789
 ```
 
 See [Downloading Guide](references/conversion_guide.md) for details.
@@ -77,40 +77,15 @@ See [Downloading Guide](references/conversion_guide.md) for details.
 3. Upload via REST API:
 
 ```bash
-python3 ~/.claude/skills/confluence/scripts/upload_confluence_v2.py \
+python3 scripts/upload_confluence_v2.py \
     document.md --id PAGE_ID
 ```
 
 See [Image Handling Best Practices](references/image_handling_best_practices.md) for details.
 
-### Search Confluence
+### Search, Create, and Update Pages
 
-```javascript
-mcp__atlassian-evinova__confluence_search({
-  query: 'space = "DEV" AND text ~ "API"',
-  limit: 10
-})
-```
-
-### Create/Update Pages (Small Documents)
-
-```javascript
-// Create page
-mcp__atlassian-evinova__confluence_create_page({
-  space_key: "DEV",
-  title: "API Documentation",
-  content: "h1. Overview\n\nContent here...",
-  content_format: "wiki"
-})
-
-// Update page
-mcp__atlassian-evinova__confluence_update_page({
-  page_id: "123456789",
-  title: "Updated Title",
-  content: "h1. New Content",
-  version_comment: "Updated via Claude Code"
-})
-```
+Use the REST scripts or the Confluence Python client from `scripts/confluence_auth.py`. Writes require an immediate dry-run/preview and explicit user confirmation.
 
 ### Sync from Git (mark CLI)
 
@@ -160,21 +135,6 @@ Detailed guides in the `references/` directory:
 | [Image Handling](references/image_handling_best_practices.md) | Workflows for images, Mermaid, PlantUML |
 | [mark Tool Guide](references/mark_tool_guide.md) | Git-to-Confluence sync with mark CLI |
 | [Troubleshooting](references/troubleshooting_guide.md) | Common errors and solutions |
-
-## Available MCP Tools
-
-| Tool | Description |
-|------|-------------|
-| `confluence_search` | Search using CQL or text |
-| `confluence_get_page` | Retrieve page by ID or title |
-| `confluence_create_page` | Create new page |
-| `confluence_update_page` | Update existing page |
-| `confluence_delete_page` | Delete page |
-| `confluence_get_page_children` | Get child pages |
-| `confluence_add_label` | Add label to page |
-| `confluence_get_labels` | Get page labels |
-| `confluence_add_comment` | Add comment to page |
-| `confluence_get_comments` | Get page comments |
 
 ## Utility Scripts
 

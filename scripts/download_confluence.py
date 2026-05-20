@@ -47,16 +47,26 @@ logger = logging.getLogger(__name__)
 class ConfluenceValidator:
     """Validates downloaded content against Confluence source."""
 
-    def __init__(self, confluence_url: str, username: str, api_token: str):
-        self.confluence_url = confluence_url.rstrip('/')
-        if self.confluence_url.endswith('/wiki'):
-            self.confluence_url = self.confluence_url[:-5]
+    def __init__(self, confluence_url: str, username: str, api_token: str, auth_type: str = 'bearer', context_path: Optional[str] = None):
+        base_url = confluence_url.rstrip('/')
+        if context_path is None:
+            context_path = os.getenv('CONFLUENCE_CONTEXT_PATH', '')
+        context_path = context_path.strip('/')
 
-        self.api_base = f"{self.confluence_url}/wiki/rest/api"
-        self.web_base = f"{self.confluence_url}/wiki"  # Base URL for web resources (downloads, etc.)
-        self.auth = (username, api_token)
+        if context_path and base_url.endswith('/' + context_path):
+            self.web_base = base_url
+        elif context_path:
+            self.web_base = base_url + '/' + context_path
+        else:
+            self.web_base = base_url
+
+        self.confluence_url = base_url
+        self.api_base = f"{self.web_base}/rest/api"
         self.session = requests.Session()
-        self.session.auth = self.auth
+        if auth_type == 'bearer':
+            self.session.headers.update({'Authorization': f'Bearer {api_token}'})
+        else:
+            self.session.auth = (username, api_token)
 
     def get_page_info(self, page_id: str) -> Dict:
         """Get page metadata from Confluence."""
@@ -678,6 +688,7 @@ def load_configuration(env_file: Optional[str] = None, output_override: Optional
         'confluence_url': creds['url'],
         'username': creds['username'],
         'api_token': creds['token'],
+        'auth_type': creds.get('auth_type', 'bearer'),
         'output_dir': output_override or os.getenv('CONFLUENCE_OUTPUT_DIR', 'confluence_docs')
     }
 
@@ -713,7 +724,7 @@ Examples:
     )
 
     parser.add_argument('page_ids', nargs='*', help='Page IDs to download')
-    parser.add_argument('--env-file', default='.env', help='Path to .env file (default: .env)')
+    parser.add_argument('--env-file', default=None, help='Path to specific .env file (optional)')
     parser.add_argument('--output-dir', help='Output directory (overrides .env CONFLUENCE_OUTPUT_DIR)')
     parser.add_argument('--download-children', action='store_true', help='Download child pages to subdirectories')
     parser.add_argument('--save-html', action='store_true', help='Save intermediate HTML files for debugging')
@@ -729,7 +740,12 @@ Examples:
     output_dir.mkdir(exist_ok=True)
 
     # Initialize validator and downloader
-    validator = ConfluenceValidator(config['confluence_url'], config['username'], config['api_token'])
+    validator = ConfluenceValidator(
+        config['confluence_url'],
+        config['username'],
+        config['api_token'],
+        auth_type=config.get('auth_type', 'bearer'),
+    )
     downloader = ConfluenceDownloader(validator, output_dir, save_html=args.save_html, download_children=args.download_children)
 
     if args.save_html:
