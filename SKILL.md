@@ -24,6 +24,8 @@ Manage Confluence documentation through Claude Code: download pages to Markdown,
 | Large documents (>10KB) | `upload_confluence_v2.py` | REST API, no size limits |
 | Documents with images | `upload_confluence_v2.py` | Handles attachments automatically |
 | Documents with native Confluence diagrams/macros | Storage-safe workflow | Verify the exact macro exists after upload |
+| Localized edits on pages with native macros | Storage fragment patch scripts | Avoid full Markdown re-upload |
+| Native draw.io replacement | `replace_macro_with_drawio.py --dry-run` then `--apply` | Requires `.drawio` source attachment |
 | Git-to-Confluence sync | mark CLI | Best for CI/CD workflows |
 | Download pages to Markdown | `download_confluence.py` | Converts macros, downloads attachments |
 
@@ -109,6 +111,12 @@ PlantUML labels and relationship descriptions must stay syntactically valid. Do 
 After uploading native macros, read the page back and verify the expected `ac:structured-macro ac:name="drawio"`, `ac:structured-macro ac:name="plantuml"`, or ordinary-image `ac:image` exists. Treat empty macros, literal `@startuml` text, unexpected `ac:macro ac:name="mermaid"` output, rendered PlantUML `Syntax Error`, or Graphviz/dot errors as a failed upload/rendering workflow.
 
 See [Image Handling Best Practices](references/image_handling_best_practices.md) for details.
+
+### Patch Native Macro Storage Safely
+
+For localized changes on pages with native macros (`drawio`, `plantuml`, layouts, complex tables), prefer storage-fragment patching over a full Markdown round trip. Use `patch_storage_fragment.py` or `replace_macro_with_drawio.py` in dry-run mode first, inspect the generated before/preview storage snapshots, then apply only after explicit confirmation. After applying, verify page version increased and read-back storage still contains required native macros.
+
+See [Storage Format](references/confluence_storage_format.md#storage-fragment-patching) for the validation checklist.
 
 ### Search, Create, and Update Pages
 
