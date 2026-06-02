@@ -33,6 +33,26 @@ Manage Confluence documentation through Claude Code: download pages to Markdown,
 
 Use the REST API scripts for Confluence reads and writes. Always run `--dry-run` before writes:
 
+### Python Environment for Skill Scripts
+
+Run Python scripts from the skill directory. If the normal `python3 scripts/...` invocation fails because dependencies are missing, first check whether this skill directory already has `.venv` and, if it does, run scripts with `.venv/bin/python`.
+
+If `.venv` is absent, do not silently create one and do not silently install packages. Explain the missing dependency problem and ask the user whether to try a normal/global installation first. Only after explicit confirmation, try installing `scripts/requirements.txt` with the normal Python/pip workflow for the environment. If that global/normal installation is blocked or fails, report the failure and offer to create a skill-local `.venv` as the fallback.
+
+```bash
+# Use existing skill-local venv when present
+.venv/bin/python scripts/download_confluence.py 123456789
+
+# Try normal/global install only after user confirmation
+python3 -m pip install -r scripts/requirements.txt
+
+# If normal/global install fails, offer this skill-local fallback
+python3 -m venv .venv
+.venv/bin/pip install -r scripts/requirements.txt
+```
+
+Never create ad-hoc virtualenvs in unrelated project or temporary directories for these scripts.
+
 ```bash
 # Upload large document
 python3 scripts/upload_confluence_v2.py \
