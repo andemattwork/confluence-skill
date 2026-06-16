@@ -442,6 +442,20 @@ IMPORTANT:
         for att in attachments:
             print(f"      - {att}")
 
+        # Security: reject attachment paths that escape the markdown file's directory
+        markdown_dir = file_path.parent.resolve()
+        safe_attachments = []
+        for att_path in attachments:
+            try:
+                resolved = Path(att_path).resolve()
+                resolved.relative_to(markdown_dir)
+                safe_attachments.append(att_path)
+            except ValueError:
+                print(f"WARNING: Skipping attachment outside markdown directory: {att_path}", file=sys.stderr)
+        if len(safe_attachments) < len(attachments):
+            print(f"   {len(attachments) - len(safe_attachments)} attachment(s) rejected (path traversal)", file=sys.stderr)
+        attachments = safe_attachments
+
     except Exception as e:
         print(f"ERROR: Conversion failed: {e}", file=sys.stderr)
         sys.exit(1)
