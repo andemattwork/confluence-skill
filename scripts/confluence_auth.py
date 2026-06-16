@@ -234,10 +234,13 @@ def get_confluence_client(env_file: Optional[str] = None, **overrides):
     url = overrides.get('url', creds['url'])
     username = overrides.get('username', creds['username'])
     token = overrides.get('token', creds['token'])
-    auth_type = overrides.get('auth_type', creds.get('auth_type', 'bearer')).lower()
 
     # Determine if Cloud or Server/Data Center
     is_cloud = '.atlassian.net' in url
+
+    # Cloud defaults to basic auth (username + API token); DC/Server defaults to bearer (PAT)
+    default_auth = 'basic' if is_cloud else 'bearer'
+    auth_type = overrides.get('auth_type', creds.get('auth_type', default_auth)).lower()
 
     if auth_type == 'bearer':
         return Confluence(
