@@ -13,6 +13,7 @@ Features:
 - HTML debugging mode for troubleshooting transformations
 """
 
+import html as html_module
 import os
 import re
 import sys
@@ -499,10 +500,11 @@ class ConfluenceDownloader:
 
             # Extract alt text from ac:alt attribute
             alt_match = re.search(r'ac:alt="([^"]*)"', ac_image_block)
-            alt_text = alt_match.group(1) if alt_match else filename
+            alt_text = html_module.escape(alt_match.group(1) if alt_match else filename)
+            safe_rel_path = html_module.escape(str(rel_path))
 
             # Create standard HTML img tag
-            return f'<img src="{rel_path}" alt="{alt_text}" />'
+            return f'<img src="{safe_rel_path}" alt="{alt_text}" />'
 
         return ac_image_pattern.sub(replace_ac_image, html)
 
