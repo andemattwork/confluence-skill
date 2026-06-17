@@ -65,6 +65,17 @@ class RestSessionTests(unittest.TestCase):
         _, api_base, _ = get_rest_session()
         self.assertEqual(api_base, "https://acme.atlassian.net/wiki/rest/api")
 
+    def test_bearer_pat_without_username(self):
+        # DC PAT auth has no username; discovery must still succeed.
+        os.environ["CONFLUENCE_URL"] = "https://confluence.example.com"
+        os.environ["CONFLUENCE_PERSONAL_TOKEN"] = "pat123"
+        os.environ["CONFLUENCE_AUTH_TYPE"] = "bearer"
+        os.environ["CONFLUENCE_CONTEXT_PATH"] = "wiki"
+
+        session, api_base, _ = get_rest_session()
+        self.assertEqual(api_base, "https://confluence.example.com/wiki/rest/api")
+        self.assertEqual(session.headers.get("Authorization"), "Bearer pat123")
+
 
 if __name__ == "__main__":
     unittest.main()

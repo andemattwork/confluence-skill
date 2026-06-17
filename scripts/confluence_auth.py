@@ -38,10 +38,11 @@ def _check_env_vars() -> Optional[Dict[str, str]]:
              os.getenv('CONFLUENCE_PASSWORD'))
     auth_type = os.getenv('CONFLUENCE_AUTH_TYPE', 'bearer').lower()
 
-    if all([url, username, token]):
+    # Bearer/PAT auth needs no username; basic auth does.
+    if url and token and (username or auth_type == 'bearer'):
         return {
             'url': url,
-            'username': username,
+            'username': username or '',
             'token': token,
             'auth_type': auth_type,
         }
@@ -123,10 +124,10 @@ def _load_mcp_config() -> Optional[Dict[str, str]]:
                     var_name = token[2:-1]
                     token = os.getenv(var_name)
 
-                if all([url, username, token]):
+                if url and token and (username or auth_type == 'bearer'):
                     return {
                         'url': url,
-                        'username': username,
+                        'username': username or '',
                         'token': token,
                         'auth_type': auth_type,
                     }
