@@ -2,3 +2,14 @@
 __pycache__/
 *.py[cod]
 drafts/
+
+# Credentials (never commit; *.example files under examples/ stay tracked)
+.env
+.env.confluence
+.env.jira
+.env.atlassian
+.env.local
+
+# Local output that may contain page content / comments
+confluence_comment_backups/
+confluence_docs/
