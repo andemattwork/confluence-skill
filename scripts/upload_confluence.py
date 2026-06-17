@@ -33,8 +33,9 @@ import yaml
 # Check dependencies
 try:
     import mistune
-    from confluence_auth import get_confluence_client
+    from confluence_auth import get_confluence_client, get_rest_session
     from mermaid_renderer import MermaidConfluenceRenderer
+    from inline_comments import preflight_guard, verify_after_upload
 except ImportError as e:
     print(f"ERROR: Missing dependency: {e}", file=sys.stderr)
     print("Install with: pip install atlassian-python-api md2cf python-dotenv PyYAML mistune", file=sys.stderr)
@@ -297,6 +298,10 @@ Examples:
     parser.add_argument('--update-frontmatter', action='store_true',
                         help='Update markdown file frontmatter after upload')
     parser.add_argument('--output-dir', type=str, help='Directory for generated diagrams')
+    parser.add_argument('--allow-orphan-comments', action='store_true',
+                        help='Proceed with a full-body upload even when the page '
+                             'has inline comments (they will be orphaned). A backup '
+                             'is always written first.')
 
     args = parser.parse_args()
 
@@ -342,6 +347,23 @@ Examples:
         print(f"ERROR: Conversion failed: {e}", file=sys.stderr)
         sys.exit(1)
 
+    # Inline comment guard (update mode only — new pages have no comments)
+    guard = {"count": 0, "backup_path": None, "blocked": False}
+    rest_session = None
+    rest_api_base = None
+    if page_id:
+        try:
+            rest_session, rest_api_base, _ = get_rest_session(args.env_file)
+            guard = preflight_guard(
+                rest_session, rest_api_base, page_id,
+                dry_run=args.dry_run,
+                allow_orphan_comments=args.allow_orphan_comments,
+            )
+        except Exception as e:
+            print(f"WARNING: inline comment guard skipped: {e}", file=sys.stderr)
+        if guard["blocked"]:
+            sys.exit(1)
+
     # Dry-run mode
     if args.dry_run:
         dry_run_preview(title, storage_content, space_key, page_id, parent_id, version, attachments)
@@ -375,6 +397,11 @@ Examples:
 
         if attachments:
             print(f"  Attachments uploaded: {len(attachments)}")
+
+        # Post-edit verification: report any orphaned inline comments
+        if page_id and guard["count"] > 0 and rest_session is not None:
+            verify_after_upload(rest_session, rest_api_base, page_id,
+                                guard["count"], guard["backup_path"])
 
         # Update frontmatter if requested
         if args.update_frontmatter:
