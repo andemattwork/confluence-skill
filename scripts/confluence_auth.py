@@ -257,6 +257,42 @@ def get_confluence_client(env_file: Optional[str] = None, **overrides):
     )
 
 
+def get_rest_session(env_file: Optional[str] = None):
+    """Return (session, api_base, web_base) for raw Confluence REST calls.
+
+    Honors auth_type (bearer/basic) and CONFLUENCE_CONTEXT_PATH (e.g. 'wiki').
+    Cloud instances default the context path to 'wiki'.
+    """
+    import requests
+
+    creds = get_confluence_credentials(env_file)
+    url = creds['url'].rstrip('/')
+    username = creds.get('username') or ''
+    token = creds['token']
+
+    is_cloud = '.atlassian.net' in url
+    default_auth = 'basic' if is_cloud else 'bearer'
+    auth_type = creds.get('auth_type', default_auth).lower()
+
+    context_path = os.getenv('CONFLUENCE_CONTEXT_PATH', '').strip('/')
+    if not context_path and is_cloud:
+        context_path = 'wiki'
+
+    if context_path and not url.endswith('/' + context_path):
+        web_base = url + '/' + context_path
+    else:
+        web_base = url
+    api_base = f"{web_base}/rest/api"
+
+    session = requests.Session()
+    if auth_type == 'bearer':
+        session.headers.update({'Authorization': f'Bearer {token}'})
+    else:
+        session.auth = (username, token)
+
+    return session, api_base, web_base
+
+
 if __name__ == '__main__':
     """Test credential discovery"""
     import sys
