@@ -13,3 +13,9 @@ drafts/
 # Local output that may contain page content / comments
 confluence_comment_backups/
 confluence_docs/
+
+# Local-only design/process docs (kept out of the published repo)
+docs/superpowers/
+
+# macOS cruft
+.DS_Store
