@@ -26,6 +26,7 @@ Manage Confluence documentation through Claude Code: download pages to Markdown,
 | Documents with native Confluence diagrams/macros | Storage-safe workflow | Verify the exact macro exists after upload |
 | Localized edits on pages with native macros | Storage fragment patch scripts | Avoid full Markdown re-upload |
 | Native draw.io replacement | `replace_macro_with_drawio.py --dry-run` then `--apply` | Requires `.drawio` source attachment |
+| Edit a page that has inline comments | `patch_storage_fragment.py` (anchor-preserving) | NEVER full re-upload — it orphans comments; restore can't recover them |
 | Git-to-Confluence sync | mark CLI | Best for CI/CD workflows |
 | Download pages to Markdown | `download_confluence.py` | Converts macros, downloads attachments |
 
@@ -177,6 +178,24 @@ Quick reference:
 | `*italic*` | `_italic_` |
 | `` `code` `` | `{{code}}` |
 | `[text](url)` | `[text\|url]` |
+
+## Protecting Inline Comments
+
+Inline comments are anchored to page text by storage markers
+(`<ac:inline-comment-marker ac:ref="UUID">`). A full-body upload that doesn't
+carry those markers **orphans** every inline comment, and restoring a previous
+page version does **not** re-anchor them.
+
+- **Editing a page that has inline comments:** use
+  `patch_storage_fragment.py` (anchor-preserving), not a full markdown upload.
+- **Before any risky edit:** snapshot the comments —
+  `python3 scripts/backup_inline_comments.py --id PAGE_ID` writes a JSON backup
+  to `confluence_comment_backups/`.
+- The upload scripts (`upload_confluence_v2.py`, `upload_confluence.py`) block a
+  full-body update when the live page has inline comments. They always write a
+  backup first; pass `--allow-orphan-comments` to proceed anyway.
+- For Data Center behind a context path, set `CONFLUENCE_CONTEXT_PATH`
+  (e.g. `wiki`) so REST calls resolve to `{base}/wiki/rest/api`.
 
 ## Reference Documentation
 

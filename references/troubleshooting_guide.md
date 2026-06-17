@@ -618,3 +618,20 @@ Before uploading to Confluence, verify:
 **Confluence Resources:**
 - [Confluence REST API Docs](https://docs.atlassian.com/atlassian-confluence/REST/latest/)
 - [md2cf GitHub](https://github.com/iamjackg/md2cf)
+
+## Orphaned inline comments after an edit
+
+Inline comments anchor to page text via storage markers. A full-body upload
+that drops those markers orphans the comments, and **version-restore does not
+re-anchor them** — restoring old content does not bring the comment anchors
+back.
+
+**Prevention:** the upload scripts block full-body updates on pages that have
+inline comments and always write a JSON backup to `confluence_comment_backups/`
+first. Use `patch_storage_fragment.py` for anchor-preserving edits.
+
+**Recovery:** open the backup JSON (`comments-<pageid>-v<n>-<timestamp>.json`).
+Each entry has the `anchored_text` and the comment `body_text`/`author`. Re-add
+each comment manually in Confluence by selecting the same text and pasting the
+comment body. There is no DC REST endpoint to recreate inline comments
+programmatically.
