@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -168,3 +169,53 @@ def backup_from_page(session, api_base: str, page: dict, output_dir) -> Path:
         "exported_at": datetime.now().isoformat(timespec="seconds"),
     }
     return write_backup(page_meta, correlated, output_dir)
+
+
+def preflight_guard(session, api_base: str, page_id: str, *, dry_run: bool,
+                    allow_orphan_comments: bool,
+                    backup_dir: str = "confluence_comment_backups") -> dict:
+    """Detect inline comments before a full-body update.
+
+    Backs up when any exist. Returns {"count", "backup_path", "blocked"};
+    the caller is responsible for exiting when blocked is True.
+    """
+    page = get_page(session, api_base, page_id, "body.storage,version")
+    body = ((page.get("body") or {}).get("storage") or {}).get("value", "")
+    count = count_inline_markers(body)
+    backup_path = None
+    blocked = False
+
+    if count > 0:
+        backup_path = backup_from_page(session, api_base, page, backup_dir)
+        if dry_run:
+            print(f"⚠️  Page has {count} inline comment(s). A full-body upload "
+                  f"would orphan all of them. Backup written: {backup_path}")
+        elif not allow_orphan_comments:
+            blocked = True
+            print(
+                f"❌ Page has {count} inline comment(s). A full-body upload orphans "
+                f"all of them, and version-restore will NOT recover them.\n"
+                f"   Backup written: {backup_path}\n"
+                f"   Use patch_storage_fragment.py for anchor-preserving edits, or "
+                f"re-run with --allow-orphan-comments to proceed anyway.",
+                file=sys.stderr,
+            )
+        else:
+            print(f"⚠️  Proceeding despite {count} inline comment(s); they will be "
+                  f"orphaned. Backup written: {backup_path}")
+
+    return {"count": count, "backup_path": backup_path, "blocked": blocked}
+
+
+def verify_after_upload(session, api_base: str, page_id: str, before_count: int,
+                        backup_path=None) -> int:
+    """Re-count markers after an update and report any orphaned comments."""
+    page = get_page(session, api_base, page_id, "body.storage")
+    body = ((page.get("body") or {}).get("storage") or {}).get("value", "")
+    after = count_inline_markers(body)
+    print(f"Inline comments: {before_count} -> {after}")
+    if after < before_count:
+        loc = f" Backup: {backup_path}" if backup_path else ""
+        print(f"⚠️  WARNING: {before_count - after} inline comment(s) orphaned.{loc}",
+              file=sys.stderr)
+    return after
