@@ -627,11 +627,37 @@ On upload, the script:
 
 ### Script Installation
 
-Install Python dependencies:
+Install the Python dependencies into a **skill-local virtual environment**. This
+keeps the dependencies isolated and avoids the `externally-managed-environment`
+error (PEP 668) that a global `pip3 install` triggers on Homebrew Python and
+recent Debian/Ubuntu systems.
+
 ```bash
-cd ~/.claude/skills/confluence/scripts
-pip3 install -r requirements.txt
+cd ~/.claude/skills/confluence
+
+# One-time setup (creates .venv and installs requirements)
+./scripts/setup.sh
+
+# Then run any script with the venv interpreter:
+.venv/bin/python scripts/upload_confluence.py page.md --id 123456
+.venv/bin/python scripts/download_confluence.py 123456789
 ```
+
+`setup.sh` just wraps the stdlib `venv` workflow, so it works anywhere without
+extra tooling:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r scripts/requirements.txt
+```
+
+> The `.venv/` directory is gitignored. Run scripts with `.venv/bin/python` (or
+> `source .venv/bin/activate` first); don't install into the system Python.
+
+**Faster alternative — [uv](https://github.com/astral-sh/uv):** if you have it,
+`uv venv && uv pip install -r scripts/requirements.txt` creates the same `.venv`
+much faster. Avoid `pip install --break-system-packages` and `pip install
+--user` — both either pollute or are blocked on PEP 668 systems.
 
 Optional (for Mermaid diagrams):
 ```bash

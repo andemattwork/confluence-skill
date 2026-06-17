@@ -36,32 +36,38 @@ Use the REST API scripts for Confluence reads and writes. Always run `--dry-run`
 
 ### Python Environment for Skill Scripts
 
-Run Python scripts from the skill directory. If the normal `python3 scripts/...` invocation fails because dependencies are missing, first check whether this skill directory already has `.venv` and, if it does, run scripts with `.venv/bin/python`.
+Run Python scripts from the skill directory using a **skill-local `.venv`**. A
+global `pip3 install` fails with `externally-managed-environment` (PEP 668) on
+Homebrew Python and recent Debian/Ubuntu, so the venv is the default path.
 
-If `.venv` is absent, do not silently create one and do not silently install packages. Explain the missing dependency problem and ask the user whether to try a normal/global installation first. Only after explicit confirmation, try installing `scripts/requirements.txt` with the normal Python/pip workflow for the environment. If that global/normal installation is blocked or fails, report the failure and offer to create a skill-local `.venv` as the fallback.
+If `.venv` already exists, run scripts with `.venv/bin/python`:
 
 ```bash
-# Use existing skill-local venv when present
 .venv/bin/python scripts/download_confluence.py 123456789
-
-# Try normal/global install only after user confirmation
-python3 -m pip install -r scripts/requirements.txt
-
-# If normal/global install fails, offer this skill-local fallback
-python3 -m venv .venv
-.venv/bin/pip install -r scripts/requirements.txt
+.venv/bin/python scripts/upload_confluence_v2.py document.md --id PAGE_ID --dry-run
 ```
 
-Never create ad-hoc virtualenvs in unrelated project or temporary directories for these scripts.
+If `.venv` is absent, do not silently create one or install packages. Explain
+that dependencies are missing and ask the user before setting up. With their
+confirmation, create the venv and install requirements with the bootstrap:
+
+```bash
+./scripts/setup.sh        # python3 -m venv .venv && .venv/bin/pip install -r scripts/requirements.txt
+```
+
+(If the user has [uv](https://github.com/astral-sh/uv), `uv venv && uv pip
+install -r scripts/requirements.txt` is a faster equivalent.) Do not use
+`pip install --break-system-packages` or `--user`, and never create ad-hoc
+virtualenvs in unrelated project or temporary directories for these scripts.
 
 ```bash
 # Upload large document
-python3 scripts/upload_confluence_v2.py \
-    document.md --id 780369923
+.venv/bin/python scripts/upload_confluence_v2.py \
+    document.md --id PAGE_ID
 
 # Dry-run preview
-python3 scripts/upload_confluence_v2.py \
-    document.md --id 780369923 --dry-run
+.venv/bin/python scripts/upload_confluence_v2.py \
+    document.md --id PAGE_ID --dry-run
 ```
 
 Local Server/Data Center auth supports `CONFLUENCE_PERSONAL_TOKEN`, `CONFLUENCE_AUTH_TYPE=bearer`, and optional `CONFLUENCE_CONTEXT_PATH`. Do not print token values.
@@ -83,13 +89,13 @@ Local Server/Data Center auth supports `CONFLUENCE_PERSONAL_TOKEN`, `CONFLUENCE_
 
 ```bash
 # Single page
-python3 scripts/download_confluence.py 123456789
+.venv/bin/python scripts/download_confluence.py 123456789
 
 # With child pages
-python3 scripts/download_confluence.py --download-children 123456789
+.venv/bin/python scripts/download_confluence.py --download-children 123456789
 
 # Custom output directory
-python3 scripts/download_confluence.py --output-dir ./docs 123456789
+.venv/bin/python scripts/download_confluence.py --output-dir ./docs 123456789
 ```
 
 See [Downloading Guide](references/conversion_guide.md) for details.
@@ -107,7 +113,7 @@ Native PlantUML component/class/state diagrams require server-side Graphviz `dot
 3. Upload via REST API:
 
 ```bash
-python3 scripts/upload_confluence_v2.py \
+.venv/bin/python scripts/upload_confluence_v2.py \
     document.md --id PAGE_ID
 ```
 
@@ -189,7 +195,7 @@ page version does **not** re-anchor them.
 - **Editing a page that has inline comments:** use
   `patch_storage_fragment.py` (anchor-preserving), not a full markdown upload.
 - **Before any risky edit:** snapshot the comments —
-  `python3 scripts/backup_inline_comments.py --id PAGE_ID` writes a JSON backup
+  `.venv/bin/python scripts/backup_inline_comments.py --id PAGE_ID` writes a JSON backup
   to `confluence_comment_backups/`.
 - The upload scripts (`upload_confluence_v2.py`, `upload_confluence.py`) block a
   full-body update when the live page has inline comments. They always write a
