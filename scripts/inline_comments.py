@@ -9,7 +9,13 @@ them up to JSON, and gate full-body uploads.
 
 from __future__ import annotations
 
+import json
+import logging
 import re
+from datetime import datetime
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # One inline-comment-marker element. ac:ref may not be the first attribute, and
 # the inner body may contain nested tags.
@@ -43,3 +49,122 @@ def extract_inline_markers(storage_xml: str) -> list:
 def count_inline_markers(storage_xml: str) -> int:
     """Number of distinct inline-comment anchors in the storage body."""
     return len(extract_inline_markers(storage_xml))
+
+
+def get_page(session, api_base: str, page_id: str, expand: str) -> dict:
+    """Fetch a page via raw REST. Raises on HTTP error."""
+    resp = session.get(f"{api_base}/content/{page_id}", params={"expand": expand})
+    resp.raise_for_status()
+    return resp.json()
+
+
+def fetch_inline_comments(session, api_base: str, page_id: str) -> list:
+    """Best-effort fetch of inline comments via raw REST. Never raises.
+
+    Returns [] on any non-200 response, network error, or JSON error. Status
+    strings are recorded verbatim (DC uses 'closed', not 'resolved').
+    """
+    url = f"{api_base}/content/{page_id}/child/comment"
+    params = {
+        "location": "inline",
+        "expand": "body.storage,extensions.inlineProperties,extensions.resolution,version",
+        "limit": 200,
+    }
+    try:
+        resp = session.get(url, params=params)
+        if resp.status_code != 200:
+            logger.warning("Inline comment fetch returned %s for page %s",
+                           resp.status_code, page_id)
+            return []
+        data = resp.json()
+    except Exception as e:  # network, JSON decode, etc.
+        logger.warning("Inline comment fetch failed for page %s: %s", page_id, e)
+        return []
+
+    out = []
+    for item in data.get("results", []):
+        ext = item.get("extensions") or {}
+        inline_props = ext.get("inlineProperties") or {}
+        resolution = ext.get("resolution") or {}
+        body_value = ((item.get("body") or {}).get("storage") or {}).get("value", "")
+        version = item.get("version") or {}
+        out.append({
+            "id": item.get("id"),
+            "marker_ref": inline_props.get("markerRef"),
+            "original_selection": inline_props.get("originalSelection", ""),
+            "body_text": _TAG_RE.sub('', body_value).strip(),
+            "author": (version.get("by") or {}).get("displayName", ""),
+            "created": version.get("when", ""),
+            "status": resolution.get("status", ""),
+        })
+    return out
+
+
+def correlate(markers: list, comments: list) -> list:
+    """Join storage markers with API comments on ref==marker_ref.
+
+    Storage markers (authoritative anchor text) always survive. API comments
+    with no matching marker are appended so nothing is dropped.
+    """
+    by_ref = {c["marker_ref"]: c for c in comments if c.get("marker_ref")}
+    matched = set()
+    result = []
+    for m in markers:
+        c = by_ref.get(m["ref"], {})
+        if c:
+            matched.add(m["ref"])
+        result.append({
+            "ref": m["ref"],
+            "anchored_text": m["anchored_text"],
+            "body_text": c.get("body_text", ""),
+            "author": c.get("author", ""),
+            "created": c.get("created", ""),
+            "status": c.get("status", ""),
+            "original_selection": c.get("original_selection", ""),
+        })
+    for c in comments:
+        ref = c.get("marker_ref")
+        if ref in matched:
+            continue
+        result.append({
+            "ref": ref,
+            "anchored_text": "",
+            "body_text": c.get("body_text", ""),
+            "author": c.get("author", ""),
+            "created": c.get("created", ""),
+            "status": c.get("status", ""),
+            "original_selection": c.get("original_selection", ""),
+        })
+    return result
+
+
+def write_backup(page_meta: dict, correlated: list, output_dir) -> Path:
+    """Write the authoritative JSON snapshot; return its path."""
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    fname = f"comments-{page_meta['id']}-v{page_meta['version']}-{ts}.json"
+    path = output_dir / fname
+    payload = {
+        "page": page_meta,
+        "comment_count": len(correlated),
+        "comments": correlated,
+    }
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def backup_from_page(session, api_base: str, page: dict, output_dir) -> Path:
+    """Build and write a backup from an already-fetched page dict."""
+    body = ((page.get("body") or {}).get("storage") or {}).get("value", "")
+    markers = extract_inline_markers(body)
+    comments = fetch_inline_comments(session, api_base, page["id"])
+    correlated = correlate(markers, comments)
+    page_meta = {
+        "id": page["id"],
+        "version": (page.get("version") or {}).get("number"),
+        "title": page.get("title", ""),
+        "url": (page.get("_links") or {}).get("webui", ""),
+        "exported_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    return write_backup(page_meta, correlated, output_dir)
