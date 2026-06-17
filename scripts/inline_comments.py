@@ -9,6 +9,7 @@ them up to JSON, and gate full-body uploads.
 
 from __future__ import annotations
 
+import html
 import json
 import logging
 import re
@@ -44,7 +45,10 @@ def extract_inline_markers(storage_xml: str) -> list:
             grouped[ref] = []
             order.append(ref)
         grouped[ref].append(inner)
-    return [{"ref": ref, "anchored_text": "".join(grouped[ref])} for ref in order]
+    # Unescape HTML entities so anchored_text matches the rendered text a human
+    # selects when re-creating an orphaned comment (e.g. &quot; -> ").
+    return [{"ref": ref, "anchored_text": html.unescape("".join(grouped[ref]))}
+            for ref in order]
 
 
 def count_inline_markers(storage_xml: str) -> int:

@@ -48,6 +48,10 @@ class MarkerExtractionTests(unittest.TestCase):
         xml = '<ac:inline-comment-marker ac:ref="r1"><strong>bo</strong>ld</ac:inline-comment-marker>'
         self.assertEqual(extract_inline_markers(xml)[0]["anchored_text"], "bold")
 
+    def test_html_entities_unescaped(self):
+        xml = '<ac:inline-comment-marker ac:ref="r1">say &quot;hi&quot; &amp; bye</ac:inline-comment-marker>'
+        self.assertEqual(extract_inline_markers(xml)[0]["anchored_text"], 'say "hi" & bye')
+
 
 import json
 import tempfile
