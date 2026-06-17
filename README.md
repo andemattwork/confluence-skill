@@ -18,6 +18,7 @@ A comprehensive Claude Code skill that provides expert guidance for managing Con
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
 - [Uploading Markdown to Confluence](#uploading-markdown-to-confluence)
+- [Protecting Inline Comments](#protecting-inline-comments)
 - [Features](#features)
 - [File Structure](#file-structure)
 - [Key Documentation](#key-documentation)
@@ -636,6 +637,37 @@ Optional (for Mermaid diagrams):
 ```bash
 npm install -g @mermaid-js/mermaid-cli
 ```
+
+---
+
+## Protecting Inline Comments
+
+Inline comments in Confluence are anchored to specific page text via storage
+markers (`<ac:inline-comment-marker>`). A full-body page update that doesn't
+carry those markers **orphans** every inline comment — and restoring a previous
+page version does **not** bring the anchors back. Page content is recoverable
+from history; inline comments are not. The upload scripts safeguard against this
+automatically:
+
+- **Pre-flight guard (fail-closed):** before updating a page, the script counts
+  the live page's inline comments. If any exist, it **refuses the full-body
+  upload** rather than silently orphaning them. Pass `--allow-orphan-comments`
+  to override intentionally.
+- **Automatic backup:** whenever inline comments are detected, a JSON snapshot
+  (anchor text plus each comment's body, author, and status) is written to
+  `confluence_comment_backups/` first — so they're recoverable even if you
+  proceed.
+- **Post-edit verification:** after an applied update, the script re-counts the
+  markers and reports exactly how many comments were orphaned, if any.
+- **Anchor-preserving edits:** for pages that carry inline comments, use
+  `scripts/patch_storage_fragment.py` (surgical storage edits) instead of a full
+  re-upload, so existing anchors survive.
+- **Standalone backup:** `python3 scripts/backup_inline_comments.py --id PAGE_ID`
+  snapshots a page's inline comments to JSON on demand.
+
+> **Data Center note:** if your instance serves REST under a context path, set
+> `CONFLUENCE_CONTEXT_PATH` (e.g. `wiki`) so the scripts resolve
+> `{base}/wiki/rest/api`.
 
 ---
 
