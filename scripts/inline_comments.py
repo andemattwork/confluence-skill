@@ -77,27 +77,27 @@ def fetch_inline_comments(session, api_base: str, page_id: str) -> list:
                            resp.status_code, page_id)
             return []
         data = resp.json()
-    except Exception as e:  # network, JSON decode, etc.
+
+        out = []
+        for item in data.get("results", []):
+            ext = item.get("extensions") or {}
+            inline_props = ext.get("inlineProperties") or {}
+            resolution = ext.get("resolution") or {}
+            body_value = ((item.get("body") or {}).get("storage") or {}).get("value", "")
+            version = item.get("version") or {}
+            out.append({
+                "id": item.get("id"),
+                "marker_ref": inline_props.get("markerRef"),
+                "original_selection": inline_props.get("originalSelection", ""),
+                "body_text": _TAG_RE.sub('', body_value).strip(),
+                "author": (version.get("by") or {}).get("displayName", ""),
+                "created": version.get("when", ""),
+                "status": resolution.get("status", ""),
+            })
+        return out
+    except Exception as e:  # network, JSON decode, malformed data, etc.
         logger.warning("Inline comment fetch failed for page %s: %s", page_id, e)
         return []
-
-    out = []
-    for item in data.get("results", []):
-        ext = item.get("extensions") or {}
-        inline_props = ext.get("inlineProperties") or {}
-        resolution = ext.get("resolution") or {}
-        body_value = ((item.get("body") or {}).get("storage") or {}).get("value", "")
-        version = item.get("version") or {}
-        out.append({
-            "id": item.get("id"),
-            "marker_ref": inline_props.get("markerRef"),
-            "original_selection": inline_props.get("originalSelection", ""),
-            "body_text": _TAG_RE.sub('', body_value).strip(),
-            "author": (version.get("by") or {}).get("displayName", ""),
-            "created": version.get("when", ""),
-            "status": resolution.get("status", ""),
-        })
-    return out
 
 
 def correlate(markers: list, comments: list) -> list:

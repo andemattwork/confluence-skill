@@ -96,6 +96,16 @@ class FetchInlineCommentsTests(unittest.TestCase):
         session = FakeSession(comment_error=True)
         self.assertEqual(fetch_inline_comments(session, "http://api", "1"), [])
 
+    def test_json_returns_none_is_safe(self):
+        class NoneJsonSession:
+            def get(self, url, params=None):
+                class R:
+                    status_code = 200
+                    def json(self_inner):
+                        return None
+                return R()
+        self.assertEqual(fetch_inline_comments(NoneJsonSession(), "http://api", "1"), [])
+
     def test_parses_fields_verbatim(self):
         payload = {"results": [{
             "id": "c1",
