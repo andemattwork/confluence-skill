@@ -478,7 +478,12 @@ IMPORTANT:
                 allow_orphan_comments=args.allow_orphan_comments,
             )
         except Exception as e:
-            print(f"WARNING: inline comment guard skipped: {e}", file=sys.stderr)
+            print(f"ERROR: inline comment guard could not run: {e}", file=sys.stderr)
+            if not args.dry_run and not args.allow_orphan_comments:
+                print("   Refusing full-body upload because comment protection "
+                      "could not verify the page. Re-run with "
+                      "--allow-orphan-comments to override.", file=sys.stderr)
+                sys.exit(1)
         if guard["blocked"]:
             sys.exit(1)
 
